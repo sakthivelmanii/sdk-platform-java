@@ -136,7 +136,7 @@ public class GapicServiceConfig {
   }
 
   public String getRetryCodeName(Service service, Method method) {
-    Optional<Integer> retryPolicyIndexOpt = retryPolicyIndexLookup(service, method);
+    Optional<Integer> retryPolicyIndexOpt = methodConfigIndexLookup(service, method);
     if (retryPolicyIndexOpt.isPresent()) {
       return getRetryCodeName(retryPolicyIndexOpt.get());
     }
@@ -144,7 +144,7 @@ public class GapicServiceConfig {
   }
 
   public String getRetryParamsName(Service service, Method method) {
-    Optional<Integer> retryPolicyIndexOpt = retryPolicyIndexLookup(service, method);
+    Optional<Integer> retryPolicyIndexOpt = methodConfigIndexLookup(service, method);
     if (retryPolicyIndexOpt.isPresent()) {
       return getRetryParamsName(retryPolicyIndexOpt.get());
     }
@@ -181,7 +181,7 @@ public class GapicServiceConfig {
 
   private GapicRetrySettings toGapicRetrySettings(Service service, Method method) {
     GapicRetrySettings.Kind kind = GapicRetrySettings.Kind.FULL;
-    Optional<Integer> retryPolicyIndexOpt = retryPolicyIndexLookup(service, method);
+    Optional<Integer> retryPolicyIndexOpt = methodConfigIndexLookup(service, method);
     if (!retryPolicyIndexOpt.isPresent()) {
       kind = GapicRetrySettings.Kind.NONE;
     } else {
@@ -212,7 +212,7 @@ public class GapicServiceConfig {
   }
 
   private RetryPolicy retryPolicyLookup(Service service, Method method) {
-    Optional<Integer> retryPolicyIndexOpt = retryPolicyIndexLookup(service, method);
+    Optional<Integer> retryPolicyIndexOpt = methodConfigIndexLookup(service, method);
     if (retryPolicyIndexOpt.isPresent()) {
       MethodConfig methodConfig = methodConfigs.get(retryPolicyIndexOpt.get());
       return methodConfig.hasRetryPolicy() ? methodConfig.getRetryPolicy() : EMPTY_RETRY_POLICY;
@@ -221,7 +221,7 @@ public class GapicServiceConfig {
   }
 
   private Duration timeoutLookup(Service service, Method method) {
-    Optional<Integer> retryPolicyIndexOpt = retryPolicyIndexLookup(service, method);
+    Optional<Integer> retryPolicyIndexOpt = methodConfigIndexLookup(service, method);
     if (retryPolicyIndexOpt.isPresent()) {
       MethodConfig methodConfig = methodConfigs.get(retryPolicyIndexOpt.get());
       return methodConfig.hasTimeout() ? methodConfig.getTimeout() : EMPTY_TIMEOUT;
@@ -229,7 +229,7 @@ public class GapicServiceConfig {
     return EMPTY_TIMEOUT;
   }
 
-  private Optional<Integer> retryPolicyIndexLookup(Service service, Method method) {
+  private Optional<Integer> methodConfigIndexLookup(Service service, Method method) {
     MethodConfig.Name serviceMethodName = toName(service, method);
     if (methodConfigTable.containsKey(serviceMethodName)) {
       return Optional.of(methodConfigTable.get(serviceMethodName));
@@ -282,5 +282,14 @@ public class GapicServiceConfig {
 
   private String serviceToNameString(Service service) {
     return String.format("%s.%s", service.protoPakkage(), service.name());
+  }
+
+  public boolean shouldAwaitTrailers(Service service, Method method) {
+    Optional<Integer> optionalIndex = methodConfigIndexLookup(service, method);
+    if(optionalIndex.isPresent()) {
+      MethodConfig methodConfig = methodConfigs.get(optionalIndex.get());
+      return methodConfig.getSkipTrailerWait();
+    }
+    return false;
   }
 }

@@ -42,6 +42,7 @@ import com.google.api.generator.engine.ast.LogicalOperationExpr;
 import com.google.api.generator.engine.ast.MethodDefinition;
 import com.google.api.generator.engine.ast.MethodInvocationExpr;
 import com.google.api.generator.engine.ast.NewObjectExpr;
+import com.google.api.generator.engine.ast.PrimitiveValue;
 import com.google.api.generator.engine.ast.Reference;
 import com.google.api.generator.engine.ast.ReferenceConstructorExpr;
 import com.google.api.generator.engine.ast.RelationalOperationExpr;
@@ -80,6 +81,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.longrunning.Operation;
 import com.google.protobuf.TypeRegistry;
+import io.grpc.serviceconfig.ServiceConfig;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -277,11 +279,13 @@ public abstract class AbstractTransportServiceStubClassComposer implements Class
   }
 
   protected Expr createTransportSettingsInitExpr(
+      Service service,
       Method method,
       VariableExpr transportSettingsVarExpr,
       VariableExpr methodDescriptorVarExpr,
       List<Statement> classStatements,
-      ImmutableMap<String, Message> messageTypes) {
+      GapicContext context) {
+    ImmutableMap<String, Message> messageTypes = context.messages();
     MethodInvocationExpr callSettingsBuilderExpr =
         MethodInvocationExpr.builder()
             .setStaticReferenceType(getTransportContext().transportCallSettingsType())
@@ -331,6 +335,17 @@ public abstract class AbstractTransportServiceStubClassComposer implements Class
               .build();
     }
 
+    if (shouldAwaitTrailers(context.serviceConfig(), service, method)) {
+      callSettingsBuilderExpr = MethodInvocationExpr.builder()
+          .setExprReferenceExpr(callSettingsBuilderExpr)
+          .setMethodName("setShouldAwaitTrailers")
+          .setArguments(ValueExpr.withValue(PrimitiveValue.builder()
+                  .setType(TypeNode.BOOLEAN)
+                  .setValue("true")
+              .build()))
+          .build();
+    }
+
     callSettingsBuilderExpr =
         MethodInvocationExpr.builder()
             .setExprReferenceExpr(callSettingsBuilderExpr)
@@ -341,6 +356,13 @@ public abstract class AbstractTransportServiceStubClassComposer implements Class
         .setVariableExpr(transportSettingsVarExpr.toBuilder().setIsDecl(true).build())
         .setValueExpr(callSettingsBuilderExpr)
         .build();
+  }
+
+  private boolean shouldAwaitTrailers(GapicServiceConfig gapicServiceConfig, Service service, Method method) {
+    if(gapicServiceConfig == null) {
+      return false;
+    }
+    return gapicServiceConfig.shouldAwaitTrailers(service, method);
   }
 
   protected List<MethodDefinition> createGetMethodDescriptorsMethod(
@@ -771,12 +793,12 @@ public abstract class AbstractTransportServiceStubClassComposer implements Class
             .map(
                 m ->
                     createTransportSettingsInitExpr(
-                        m,
+                        service, m,
                         javaStyleMethodNameToTransportSettingsVarExprs.get(
                             JavaStyle.toLowerCamelCase(m.name())),
                         protoMethodNameToDescriptorVarExprs.get(m.name()),
                         classStatements,
-                        context.messages()))
+                        context))
             .collect(Collectors.toList()));
     secondCtorStatements.addAll(
         secondCtorExprs.stream().map(ExprStatement::withExpr).collect(Collectors.toList()));

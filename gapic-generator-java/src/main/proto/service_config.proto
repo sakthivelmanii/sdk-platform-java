@@ -187,6 +187,8 @@ message MethodConfig {
     RetryPolicy retry_policy = 6;
     HedgingPolicy hedging_policy = 7;
   }
+
+  bool skipTrailerWait = 8;
 }
 
 // Configuration for pick_first LB policy.
