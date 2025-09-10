@@ -64,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -195,6 +196,26 @@ public final class GrpcCallContext implements ApiCallContext {
   public GrpcCallContext withCredentials(Credentials newCredentials) {
     Preconditions.checkNotNull(newCredentials);
     CallCredentials callCredentials = MoreCallCredentials.from(newCredentials);
+    return new GrpcCallContext(
+        channel,
+        newCredentials,
+        callOptions.withCallCredentials(callCredentials),
+        timeout,
+        streamWaitTimeout,
+        streamIdleTimeout,
+        channelAffinity,
+        extraHeaders,
+        options,
+        retrySettings,
+        retryableCodes,
+        endpointContext,
+        isDirectPath);
+  }
+
+  public GrpcCallContext withCallCredentialsProvider(Credentials newCredentials, Function<Credentials, CallCredentials> callCredentialsProvider) {
+    Preconditions.checkNotNull(newCredentials);
+    Preconditions.checkNotNull(callCredentialsProvider);
+    CallCredentials callCredentials = callCredentialsProvider.apply(newCredentials);
     return new GrpcCallContext(
         channel,
         newCredentials,
