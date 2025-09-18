@@ -77,9 +77,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
@@ -145,6 +147,7 @@ public final class InstantiatingGrpcChannelProvider implements TransportChannelP
   @Nullable private final Boolean keepAliveWithoutCalls;
   private final ChannelPoolSettings channelPoolSettings;
   @Nullable private final Credentials credentials;
+  @Nullable private final Function<Credentials, CallCredentials> callCredentialsProvider;
   @Nullable private final CallCredentials altsCallCredentials;
   @Nullable private final CallCredentials mtlsS2ACallCredentials;
   @Nullable private final ChannelPrimer channelPrimer;
@@ -199,6 +202,7 @@ public final class InstantiatingGrpcChannelProvider implements TransportChannelP
     this.channelPoolSettings = builder.channelPoolSettings;
     this.channelConfigurator = builder.channelConfigurator;
     this.credentials = builder.credentials;
+    this.callCredentialsProvider = builder.callCredentialsProvider;
     this.altsCallCredentials = builder.altsCallCredentials;
     this.mtlsS2ACallCredentials = builder.mtlsS2ACallCredentials;
     this.channelPrimer = builder.channelPrimer;
@@ -653,7 +657,9 @@ public final class InstantiatingGrpcChannelProvider implements TransportChannelP
     // Check DirectPath traffic.
     boolean useDirectPathXds = false;
     if (canUseDirectPath()) {
-      CallCredentials callCreds = MoreCallCredentials.from(credentials);
+      CallCredentials callCreds = Optional.ofNullable(callCredentialsProvider)
+          .map(function -> function.apply(credentials))
+          .orElse(MoreCallCredentials.from(credentials));
       // altsCallCredentials may be null and GoogleDefaultChannelCredentials
       // will solely use callCreds. Otherwise it uses altsCallCredentials
       // for DirectPath connections and callCreds for CloudPath fallbacks.
@@ -871,6 +877,7 @@ public final class InstantiatingGrpcChannelProvider implements TransportChannelP
     @Nullable private Boolean keepAliveWithoutCalls;
     @Nullable private ApiFunction<ManagedChannelBuilder, ManagedChannelBuilder> channelConfigurator;
     @Nullable private Credentials credentials;
+    @Nullable private Function<Credentials, CallCredentials> callCredentialsProvider;
     @Nullable private CallCredentials altsCallCredentials;
     @Nullable private CallCredentials mtlsS2ACallCredentials;
     @Nullable private ChannelPrimer channelPrimer;
@@ -1168,6 +1175,11 @@ public final class InstantiatingGrpcChannelProvider implements TransportChannelP
 
     public Builder setCredentials(Credentials credentials) {
       this.credentials = credentials;
+      return this;
+    }
+
+    public Builder setCallCredentialsProvider(Function<Credentials, CallCredentials> callCredentialsProvider) {
+      this.callCredentialsProvider = callCredentialsProvider;
       return this;
     }
 

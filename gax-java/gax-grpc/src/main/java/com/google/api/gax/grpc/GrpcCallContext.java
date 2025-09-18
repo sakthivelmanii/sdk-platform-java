@@ -85,8 +85,8 @@ public final class GrpcCallContext implements ApiCallContext {
   public static final CallOptions.Key<ApiTracer> TRACER_KEY = CallOptions.Key.create("gax.tracer");
 
   private final Channel channel;
-  @Nullable private final Credentials credentials;
-  private final CallOptions callOptions;
+  @Nullable private Credentials credentials;
+  private CallOptions callOptions;
   @Nullable private final java.time.Duration timeout;
   @Nullable private final java.time.Duration streamWaitTimeout;
   @Nullable private final java.time.Duration streamIdleTimeout;
@@ -209,6 +209,15 @@ public final class GrpcCallContext implements ApiCallContext {
         retryableCodes,
         endpointContext,
         isDirectPath);
+  }
+
+  public void refreshCredentials(Credentials newCredentials) {
+    Preconditions.checkNotNull(newCredentials);
+    this.credentials = newCredentials;
+    if(!isDirectPath) {
+      CallCredentials callCredentials = MoreCallCredentials.from(newCredentials);
+      this.callOptions = callOptions.withCallCredentials(callCredentials);
+    }
   }
 
   @Override
